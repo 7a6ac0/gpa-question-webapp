@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block nav_practice %}active{% endblock %}
+{% block content %}
+<section class="categories" id="category-section">
+    <h2>選擇練習類別</h2>
+    <div class="cat-grid" id="cat-grid">
+        <p class="loading">載入中...</p>
+    </div>
+
+    <div class="controls">
+        <select id="question-type">
+            <option value="">題型：全部</option>
+            <option value="tf">是非題</option>
+            <option value="mc">選擇題</option>
+        </select>
+        <select id="question-count">
+            <option value="20">20 題</option>
+            <option value="50">50 題</option>
+            <option value="100">100 題</option>
+        </select>
+        <button class="btn btn-primary" id="start-btn" onclick="startPractice()">開始練習</button>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const selectedCategories = new Set();
+
+function getAnonymousId() {
+    let id = localStorage.getItem('gpa_anonymous_id');
+    if (!id) {
+        id = crypto.randomUUID();
+        localStorage.setItem('gpa_anonymous_id', id);
+    }
+    return id;
+}
+
+async function loadCategories() {
+    const res = await fetch('/api/categories');
+    const categories = await res.json();
+    const grid = document.getElementById('cat-grid');
+    grid.innerHTML = '';
+
+    categories.forEach(cat => {
+        const card = document.createElement('div');
+        card.className = 'cat-card';
+        card.dataset.id = cat.id;
+        card.innerHTML = `
+            <div class="cat-card-left">
+                <span class="check"></span>
+                <span class="name">${cat.name}</span>
+            </div>
+            <span class="count">${cat.question_count} 題</span>
+        `;
+        card.addEventListener('click', () => toggleCategory(card, cat.id));
+        grid.appendChild(card);
+    });
+}
+
+function toggleCategory(card, id) {
+    if (selectedCategories.has(id)) {
+        selectedCategories.delete(id);
+        card.classList.remove('selected');
+    } else {
+        selectedCategories.add(id);
+        card.classList.add('selected');
+    }
+}
+
+async function startPractice() {
+    if (selectedCategories.size === 0) {
+        alert('請至少選擇一個類別');
+        return;
+    }
+
+    const btn = document.getElementById('start-btn');
+    btn.disabled = true;
+    btn.textContent = '載入中...';
+
+    try {
+        const res = await fetch('/api/sessions', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                category_ids: Array.from(selectedCategories),
+                question_type: document.getElementById('question-type').value || null,
+                count: parseInt(document.getElementById('question-count').value),
+                anonymous_id: getAnonymousId(),
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            alert(err.detail || '建立練習失敗');
+            return;
+        }
+
+        const data = await res.json();
+        // Store questions in sessionStorage for the practice page
+        sessionStorage.setItem('practice_questions', JSON.stringify(data.questions));
+        sessionStorage.setItem('practice_session_id', data.session_id);
+        window.location.href = `/practice/${data.session_id}`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '開始練習';
+    }
+}
+
+loadCategories();
+</script>
+{% endblock %}

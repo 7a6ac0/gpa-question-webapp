@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}練習中 - 採購法題庫練習{% endblock %}
+{% block content %}
+<section class="practice" id="practice-section">
+    <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
+    <div class="progress-info">
+        <span id="progress-text">第 1 / ? 題</span>
+        <span id="score-text">正確: 0</span>
+    </div>
+
+    <div class="question-card" id="question-card">
+        <p class="loading">載入中...</p>
+    </div>
+
+    <div class="nav-buttons">
+        <button class="btn btn-outline" id="prev-btn" onclick="prevQuestion()" disabled>上一題</button>
+        <button class="btn btn-primary" id="next-btn" onclick="nextQuestion()" style="display:none">下一題</button>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const sessionId = '{{ session_id }}';
+let questions = [];
+let currentIndex = 0;
+let answered = {};
+let correctCount = 0;
+
+function init() {
+    const stored = sessionStorage.getItem('practice_questions');
+    if (!stored) {
+        document.getElementById('question-card').innerHTML = '<p>找不到題目資料，請回首頁重新開始。</p>';
+        return;
+    }
+    questions = JSON.parse(stored);
+    renderQuestion();
+}
+
+function renderQuestion() {
+    const q = questions[currentIndex];
+    const card = document.getElementById('question-card');
+    const prevAnswer = answered[q.id];
+
+    let html = `
+        <div class="q-header">
+            <span class="q-number">Q${currentIndex + 1} - ${q.question_type === 'tf' ? '是非題' : '選擇題'}</span>
+            <span class="q-category">${q.category_name}</span>
+        </div>
+        <div class="q-text">${q.question_text}</div>
+    `;
+
+    if (q.question_type === 'tf') {
+        html += renderTFOptions(q, prevAnswer);
+    } else {
+        html += renderMCOptions(q, prevAnswer);
+    }
+
+    if (prevAnswer && prevAnswer.feedback) {
+        html += renderFeedback(prevAnswer.feedback);
+    }
+
+    card.innerHTML = html;
+    updateProgress();
+    updateNavButtons();
+}
+
+function renderTFOptions(q, prevAnswer) {
+    const options = [
+        {value: 'O', label: 'O (正確)'},
+        {value: 'X', label: 'X (錯誤)'},
+    ];
+
+    return options.map(opt => {
+        let cls = 'option';
+        if (prevAnswer) {
+            if (opt.value === prevAnswer.feedback.correct_answer) cls += ' correct';
+            else if (opt.value === prevAnswer.answer && !prevAnswer.feedback.correct) cls += ' wrong';
+        }
+        const disabled = prevAnswer ? 'onclick=""' : `onclick="submitAnswer('${q.id}', '${opt.value}')"`;
+        return `<div class="${cls}" ${disabled}><span class="circle"></span>${opt.label}</div>`;
+    }).join('');
+}
+
+function renderMCOptions(q, prevAnswer) {
+    if (!q.options) return '<p>無選項資料</p>';
+
+    return q.options.map(opt => {
+        const letter = opt.match(/\(([A-D])\)/)?.[1];
+        let cls = 'option';
+        if (prevAnswer && letter) {
+            if (letter === prevAnswer.feedback.correct_answer) cls += ' correct';
+            else if (letter === prevAnswer.answer && !prevAnswer.feedback.correct) cls += ' wrong';
+        }
+        const disabled = prevAnswer ? '' : `onclick="submitAnswer('${q.id}', '${letter}')"`;
+        return `<div class="${cls}" ${disabled}><span class="circle"></span>${opt}</div>`;
+    }).join('');
+}
+
+function renderFeedback(feedback) {
+    const cls = feedback.correct ? 'answer-feedback correct' : 'answer-feedback incorrect';
+    const label = feedback.correct ? '回答正確！' : `正確答案：${feedback.correct_answer}`;
+    let html = `<div class="${cls}"><div class="label">${label}</div>`;
+    if (feedback.regulation_ref) {
+        html += `<div class="regulation">依據：${feedback.regulation_ref}</div>`;
+    }
+    html += '</div>';
+    return html;
+}
+
+async function submitAnswer(questionId, answer) {
+    const res = await fetch('/api/answer', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            session_id: sessionId,
+            question_id: parseInt(questionId),
+            answer: answer,
+        }),
+    });
+
+    if (!res.ok) {
+        const err = await res.json();
+        alert(err.detail || '提交答案失敗');
+        return;
+    }
+
+    const feedback = await res.json();
+    answered[questionId] = {answer, feedback};
+
+    if (feedback.correct) correctCount++;
+
+    renderQuestion();
+
+    // Show next button
+    document.getElementById('next-btn').style.display = '';
+
+    // Auto-navigate to results when all done
+    if (feedback.session_progress.answered >= feedback.session_progress.total) {
+        document.getElementById('next-btn').textContent = '查看結果';
+        document.getElementById('next-btn').onclick = () => {
+            window.location.href = `/results/${sessionId}`;
+        };
+    }
+}
+
+function updateProgress() {
+    const total = questions.length;
+    const answeredCount = Object.keys(answered).length;
+    document.getElementById('progress-text').textContent = `第 ${currentIndex + 1} / ${total} 題`;
+    document.getElementById('score-text').textContent = `正確: ${correctCount} / ${answeredCount}`;
+    document.getElementById('progress-fill').style.width = `${(answeredCount / total) * 100}%`;
+}
+
+function updateNavButtons() {
+    document.getElementById('prev-btn').disabled = currentIndex === 0;
+    const q = questions[currentIndex];
+    document.getElementById('next-btn').style.display = answered[q.id] ? '' : 'none';
+}
+
+function nextQuestion() {
+    if (currentIndex < questions.length - 1) {
+        currentIndex++;
+        renderQuestion();
+    }
+}
+
+function prevQuestion() {
+    if (currentIndex > 0) {
+        currentIndex--;
+        renderQuestion();
+    }
+}
+
+init();
+</script>
+{% endblock %}

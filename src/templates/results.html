@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}結果 - 採購法題庫練習{% endblock %}
+{% block content %}
+<section class="results" id="results-section">
+    <p class="loading" id="loading">載入結果中...</p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const sessionId = '{{ session_id }}';
+
+async function loadResults() {
+    const res = await fetch(`/api/sessions/${sessionId}/results`);
+    if (!res.ok) {
+        document.getElementById('loading').textContent = '無法載入結果';
+        return;
+    }
+
+    const data = await res.json();
+    const section = document.getElementById('results-section');
+
+    let breakdownHtml = data.category_breakdown.map(cat => {
+        let barClass = 'high';
+        if (cat.percentage < 60) barClass = 'low';
+        else if (cat.percentage < 80) barClass = 'mid';
+
+        return `
+            <div class="cb-row">
+                <span>${cat.category_name}</span>
+                <div class="cb-right">
+                    <div class="cb-bar"><div class="fill ${barClass}" style="width:${cat.percentage}%"></div></div>
+                    <span class="cb-score">${cat.correct}/${cat.total}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    section.innerHTML = `
+        <div class="score-card">
+            <div class="score">${data.correct} / ${data.total}</div>
+            <div class="label">正確率 ${data.percentage}%</div>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-box green"><div class="num">${data.correct}</div><div class="desc">答對</div></div>
+            <div class="stat-box red"><div class="num">${data.incorrect}</div><div class="desc">答錯</div></div>
+            <div class="stat-box"><div class="num">${data.total}</div><div class="desc">總題數</div></div>
+        </div>
+
+        <div class="category-breakdown">
+            <div class="cb-header">各類別表現</div>
+            ${breakdownHtml}
+        </div>
+
+        <div class="result-actions">
+            <button class="btn btn-outline" onclick="window.location.href='/'">再練一輪</button>
+        </div>
+    `;
+}
+
+loadResults();
+</script>
+{% endblock %}
