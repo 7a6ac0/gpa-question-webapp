@@ -23,9 +23,12 @@ cp .env.example .env   # 填入 LLM_API_KEY
 docker-compose up
 
 # 3. 匯入題目
-docker-compose exec app python -m src.ingestion.cli parse --input ./data --category 1
+docker compose exec app python -m src.ingestion.cli parse --input ./data --category 1
 
-# 4. 開啟瀏覽器
+# 4. 匯入法規(初始一次即可)
+docker compose exec app python -m src.ingestion.regulation_seeder
+
+# 5. 開啟瀏覽器
 open http://localhost:8000
 ```
 
@@ -55,10 +58,9 @@ uv run uvicorn src.api.main:app --reload
 
 | 變數 | 說明 | 預設值 |
 |------|------|--------|
-| `DATABASE_URL` | PostgreSQL 連線字串 | (必填) |
 | `LLM_API_KEY` | LLM API 金鑰 | (必填，AI 解題用) |
-| `LLM_BASE_URL` | OpenAI 相容 API 端點 | `https://litellm.justmao.com/v1` |
-| `LLM_MODEL` | 模型名稱 | `claude-haiku-4-5-20251001` |
+| `LLM_BASE_URL` | OpenAI 相容 API 端點 | `https://api.openai.com/v1` |
+| `LLM_MODEL` | 模型名稱 | `gpt-4.1-mini` |
 
 ## 題目匯入
 
