@@ -95,23 +95,29 @@ class TestPDFParser:
         from src.ingestion.pdf_parser import _split_sections
 
         lines = [
-            "是非題",
-            "1. (O) 問題一",
-            "2. (X) 問題二",
             "選擇題",
-            "1. 問題三",
-            "(A) 選項A",
+            "編 答 試題",
+            "號 案",
+            "1 4 依政府採購法規定？ (1)選項一。 (2)選項二。 (3)選項三。 (4)選項四。",
+            "是非題",
+            "編 答 試題",
+            "號 案",
+            "1 O 問題一。",
+            "2 X 問題二。",
         ]
         tf, mc = _split_sections(lines)
-        assert len(tf) == 2
-        assert len(mc) == 2
+        # MC: header lines + 1 question line = 3 lines
+        assert len(tf) == 4  # header lines + 2 question lines
+        assert len(mc) == 3  # header lines + 1 question line
 
     def test_parse_tf_questions(self):
         from src.ingestion.pdf_parser import _parse_tf_questions
 
         lines = [
-            "1. (O) 機關辦理公告金額以上採購之招標，應依政府採購法第19條規定辦理。",
-            "2. (X) 採購之招標方式，分為公開招標、選擇性招標及限制性招標三種。",
+            "編 答 試題",
+            "號 案",
+            "1 O 機關辦理公告金額以上採購之招標，應依政府採購法第19條規定辦理。",
+            "2 X 採購之招標方式，分為公開招標、選擇性招標及限制性招標三種。",
         ]
         records = _parse_tf_questions(lines, category_id=1)
         assert len(records) == 2
@@ -119,20 +125,43 @@ class TestPDFParser:
         assert records[1].correct_answer == "X"
         assert records[0].question_type == "tf"
 
+    def test_parse_tf_multiline(self):
+        from src.ingestion.pdf_parser import _parse_tf_questions
+
+        lines = [
+            "1 O 因設計與計畫核定有時間差，爰機關編列計畫經費時，除應配合當時物價編",
+            "列，亦應針對其後之物價調整編列費用。",
+        ]
+        records = _parse_tf_questions(lines, category_id=1)
+        assert len(records) == 1
+        assert "物價調整編列費用" in records[0].question_text
+
     def test_parse_mc_questions(self):
         from src.ingestion.pdf_parser import _parse_mc_questions
 
         lines = [
-            "1. (B) 依政府採購法規定，下列何者得採限制性招標？",
-            "(A) 選項一",
-            "(B) 選項二",
-            "(C) 選項三",
-            "(D) 選項四",
+            "1 2 依政府採購法規定，下列何者得採限制性招標？ (1)選項一。 (2)選項二。 (3)選項三。 (4)選項四。",
         ]
         records = _parse_mc_questions(lines, category_id=1)
         assert len(records) == 1
         assert records[0].correct_answer == "B"
         assert records[0].question_type == "mc"
+        assert len(records[0].options) == 4
+        assert records[0].options[0].startswith("(A)")
+        assert records[0].options[1].startswith("(B)")
+
+    def test_parse_mc_multiline(self):
+        from src.ingestion.pdf_parser import _parse_mc_questions
+
+        lines = [
+            "1 4 依政府公共工程計畫與經費審議作業要點，以下何者不是基本設計階段審議",
+            "之重點？ (1)經費合理性。 (2)技術可行性。 (3)期程妥適性。 (4)以上皆",
+            "是。",
+        ]
+        records = _parse_mc_questions(lines, category_id=1)
+        assert len(records) == 1
+        assert records[0].correct_answer == "D"
+        assert records[0].options is not None
         assert len(records[0].options) == 4
 
     def test_extract_regulation(self):

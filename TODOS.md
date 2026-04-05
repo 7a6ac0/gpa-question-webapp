@@ -6,8 +6,7 @@ from the PCC website AJAX endpoint (`/readQuestionForPublic`). This was intentio
 deferred because manually downloading ~14 PDF files is simpler and more reliable than
 maintaining a scraper against a government website that may block automated requests.
 
-## Cross-session Weakness Analysis
-Use the `anonymous_id` field in `practice_sessions` to track user performance across
-sessions. Build a weakness analysis feature that identifies categories where the user
-consistently scores low, and prioritize those in future practice sessions.
-Potential approach: spaced repetition (SM-2 algorithm) with exam date countdown.
+## ~~Cross-session Weakness Analysis~~ (Done)
+Implemented: `/weakness` page aggregates performance across sessions by `anonymous_id`,
+shows per-category accuracy sorted worst-first, and offers "針對弱項練習" to auto-select
+weak categories. Deferred: SM-2 spaced repetition with exam date countdown.

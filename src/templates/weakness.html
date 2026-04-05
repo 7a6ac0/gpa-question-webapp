@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}弱項分析 - 採購法題庫練習{% endblock %}
+{% block nav_weakness %}active{% endblock %}
+{% block content %}
+<section class="results" id="weakness-section">
+    <p class="loading" id="loading">載入分析中...</p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function getAnonymousId() {
+    return localStorage.getItem('gpa_anonymous_id');
+}
+
+async function loadWeakness() {
+    const anonId = getAnonymousId();
+    const section = document.getElementById('weakness-section');
+
+    if (!anonId) {
+        section.innerHTML = `
+            <div class="empty-state">
+                <p>尚無練習記錄，完成一次練習後即可查看弱項分析。</p>
+                <button class="btn btn-primary" onclick="window.location.href='/'">開始練習</button>
+            </div>
+        `;
+        return;
+    }
+
+    const res = await fetch(`/api/weakness?anonymous_id=${encodeURIComponent(anonId)}`);
+    if (!res.ok) {
+        document.getElementById('loading').textContent = '無法載入分析';
+        return;
+    }
+
+    const data = await res.json();
+
+    if (data.total_answered === 0) {
+        section.innerHTML = `
+            <div class="empty-state">
+                <p>尚無練習記錄，完成一次練習後即可查看弱項分析。</p>
+                <button class="btn btn-primary" onclick="window.location.href='/'">開始練習</button>
+            </div>
+        `;
+        return;
+    }
+
+    const weakCats = data.categories.filter(c => c.percentage < 80).slice(0, 5);
+    const weakIds = weakCats.map(c => c.category_id).join(',');
+
+    let categoryRows = data.categories.map(cat => {
+        let barClass = 'high';
+        if (cat.percentage < 60) barClass = 'low';
+        else if (cat.percentage < 80) barClass = 'mid';
+
+        return `
+            <div class="cb-row">
+                <span>${cat.category_name}</span>
+                <div class="cb-right">
+                    <div class="cb-bar"><div class="fill ${barClass}" style="width:${cat.percentage}%"></div></div>
+                    <span class="cb-score">${cat.correct}/${cat.total} (${cat.percentage}%)</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    let weakPracticeBtn = '';
+    if (weakIds) {
+        weakPracticeBtn = `<button class="btn btn-primary" onclick="window.location.href='/?weak=${weakIds}'">針對弱項練習</button>`;
+    }
+
+    section.innerHTML = `
+        <h2 class="section-title">跨練習弱項分析</h2>
+
+        <div class="score-card">
+            <div class="score">${data.overall_percentage}%</div>
+            <div class="label">整體正確率</div>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-box"><div class="num">${data.sessions_count}</div><div class="desc">完成練習次數</div></div>
+            <div class="stat-box green"><div class="num">${data.total_correct}</div><div class="desc">答對</div></div>
+            <div class="stat-box"><div class="num">${data.total_answered}</div><div class="desc">總作答</div></div>
+        </div>
+
+        <div class="category-breakdown">
+            <div class="cb-header">各類別正確率（由低到高）</div>
+            ${categoryRows}
+        </div>
+
+        <div class="result-actions">
+            ${weakPracticeBtn}
+            <button class="btn btn-outline" onclick="window.location.href='/'">回首頁</button>
+        </div>
+    `;
+}
+
+loadWeakness();
+</script>
+{% endblock %}

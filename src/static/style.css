@@ -57,10 +57,19 @@ body {
 .btn-outline:hover { border-color: #2563eb; color: #2563eb; }
 
 /* Category Selection */
+.cat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
 .categories h2 {
     font-size: 16px;
-    margin-bottom: 16px;
     color: #555;
+}
+.btn-sm {
+    padding: 4px 14px;
+    font-size: 13px;
 }
 
 .cat-grid {
@@ -339,6 +348,43 @@ body {
 .result-actions {
     display: flex;
     gap: 12px;
+}
+
+/* Section title */
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+    font-size: 15px;
+}
+.empty-state .btn { margin-top: 16px; }
+
+/* AI Explanation */
+.explain-btn { margin-top: 12px; }
+.explanation-content {
+    margin-top: 12px;
+    padding: 16px;
+    background: white;
+    border-left: 3px solid #2563eb;
+    border-radius: 0 6px 6px 0;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #333;
+    white-space: pre-wrap;
+}
+.explanation-content.loading {
+    color: #888;
+    font-size: 13px;
+    background: #f8f9fa;
+    border-left-color: #ccc;
 }
 
 /* Utility */

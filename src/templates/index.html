@@ -2,7 +2,10 @@
 {% block nav_practice %}active{% endblock %}
 {% block content %}
 <section class="categories" id="category-section">
-    <h2>選擇練習類別</h2>
+    <div class="cat-header">
+        <h2>選擇練習類別</h2>
+        <button class="btn btn-outline btn-sm" id="toggle-all-btn" onclick="toggleAll()">全選</button>
+    </div>
     <div class="cat-grid" id="cat-grid">
         <p class="loading">載入中...</p>
     </div>
@@ -26,6 +29,30 @@
 {% block scripts %}
 <script>
 const selectedCategories = new Set();
+let allCategoryIds = [];
+
+function toggleAll() {
+    const cards = document.querySelectorAll('.cat-card');
+    const allSelected = selectedCategories.size === allCategoryIds.length;
+
+    cards.forEach(card => {
+        const id = parseInt(card.dataset.id);
+        if (allSelected) {
+            selectedCategories.delete(id);
+            card.classList.remove('selected');
+        } else {
+            selectedCategories.add(id);
+            card.classList.add('selected');
+        }
+    });
+
+    document.getElementById('toggle-all-btn').textContent = allSelected ? '全選' : '取消全選';
+}
+
+function updateToggleBtn() {
+    const btn = document.getElementById('toggle-all-btn');
+    btn.textContent = selectedCategories.size === allCategoryIds.length ? '取消全選' : '全選';
+}
 
 function getAnonymousId() {
     let id = localStorage.getItem('gpa_anonymous_id');
@@ -41,6 +68,8 @@ async function loadCategories() {
     const categories = await res.json();
     const grid = document.getElementById('cat-grid');
     grid.innerHTML = '';
+
+    allCategoryIds = categories.map(c => c.id);
 
     categories.forEach(cat => {
         const card = document.createElement('div');
@@ -66,6 +95,7 @@ function toggleCategory(card, id) {
         selectedCategories.add(id);
         card.classList.add('selected');
     }
+    updateToggleBtn();
 }
 
 async function startPractice() {
@@ -107,6 +137,38 @@ async function startPractice() {
     }
 }
 
-loadCategories();
+async function applyWeakParams() {
+    const params = new URLSearchParams(window.location.search);
+    const weak = params.get('weak');
+    if (!weak) return;
+
+    const ids = weak.split(',').map(Number).filter(Boolean);
+    if (ids.length === 0) return;
+
+    // Wait for categories to load
+    await loadCategories();
+
+    const cards = document.querySelectorAll('.cat-card');
+    cards.forEach(card => {
+        const id = parseInt(card.dataset.id);
+        if (ids.includes(id)) {
+            selectedCategories.add(id);
+            card.classList.add('selected');
+        }
+    });
+    updateToggleBtn();
+
+    // Clean URL
+    window.history.replaceState({}, '', '/');
+    return;
+}
+
+// Init: check for weak params, otherwise just load categories
+const params = new URLSearchParams(window.location.search);
+if (params.has('weak')) {
+    applyWeakParams();
+} else {
+    loadCategories();
+}
 </script>
 {% endblock %}

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CategoryResponse(BaseModel):
@@ -52,6 +52,23 @@ class CreateSessionResponse(BaseModel):
     questions: list[QuestionResponse]
 
 
+class WeaknessCategoryStats(BaseModel):
+    category_id: int
+    category_name: str
+    total: int
+    correct: int
+    percentage: float
+
+
+class WeaknessResponse(BaseModel):
+    anonymous_id: str
+    sessions_count: int
+    total_answered: int
+    total_correct: int
+    overall_percentage: float
+    categories: list[WeaknessCategoryStats]
+
+
 class CategoryBreakdown(BaseModel):
     category_name: str
     correct: int
@@ -66,3 +83,13 @@ class SessionResultsResponse(BaseModel):
     incorrect: int
     percentage: float
     category_breakdown: list[CategoryBreakdown]
+
+
+class ExplainRequest(BaseModel):
+    question_id: int
+    selected_answer: str = Field(max_length=10)
+
+
+class ExplainResponse(BaseModel):
+    explanation: str
+    cached: bool

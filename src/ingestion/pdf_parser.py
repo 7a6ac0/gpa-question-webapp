@@ -8,11 +8,15 @@ from src.ingestion.base import QuestionRecord
 
 logger = logging.getLogger(__name__)
 
-# Regex patterns
-QUESTION_BOUNDARY = re.compile(r"^\s*(\d+)\s*[.、]\s*")
-TF_PATTERN = re.compile(r"^\s*(\d+)\s*[.、]\s*\(([OX])\)\s*(.+)")
-MC_OPTION = re.compile(r"^\s*\(([A-D])\)\s*(.+)")
+# Regex patterns for PCC question bank PDF format
+# MC: "number answer(1-4) question_text (1)opt1 (2)opt2 (3)opt3 (4)opt4"
+# TF: "number answer(O/X) question_text"
+MC_QUESTION_START = re.compile(r"^\s*(\d+)\s+([1-4])\s+(.+)")
+TF_QUESTION_START = re.compile(r"^\s*(\d+)\s+([OX])\s+(.+)")
+HEADER_LINE = re.compile(r"^\s*(編\s+答\s+試題|號\s+案|資料產生日期)")
 REGULATION_REF = re.compile(r"(第\s*\d+\s*條[^。，\n]*)")
+
+ANSWER_NUM_TO_LETTER = {"1": "A", "2": "B", "3": "C", "4": "D"}
 
 
 def parse_pdf(filepath: Path, category_id: int) -> list[QuestionRecord]:
@@ -29,33 +33,39 @@ def parse_pdf(filepath: Path, category_id: int) -> list[QuestionRecord]:
         return records
 
     lines = full_text.split("\n")
-
-    # Split into sections: true/false (是非題) and multiple-choice (選擇題)
     tf_lines, mc_lines = _split_sections(lines)
 
-    # Parse true/false questions
     records.extend(_parse_tf_questions(tf_lines, category_id))
-
-    # Parse multiple-choice questions
     records.extend(_parse_mc_questions(mc_lines, category_id))
 
     logger.info("Parsed %d questions from %s", len(records), filepath.name)
     return records
 
 
+def _is_skip_line(line: str) -> bool:
+    """Check if a line is a header/metadata line that should be skipped."""
+    stripped = line.strip()
+    if not stripped:
+        return True
+    if HEADER_LINE.match(stripped):
+        return True
+    if stripped in ("選擇題", "是非題"):
+        return True
+    return False
+
+
 def _split_sections(lines: list[str]) -> tuple[list[str], list[str]]:
     """Split lines into true/false and multiple-choice sections."""
     tf_lines: list[str] = []
     mc_lines: list[str] = []
-
     current_section = None
 
     for line in lines:
         stripped = line.strip()
-        if "是非題" in stripped:
+        if stripped == "是非題":
             current_section = "tf"
             continue
-        elif "選擇題" in stripped:
+        elif stripped == "選擇題":
             current_section = "mc"
             continue
 
@@ -64,132 +74,117 @@ def _split_sections(lines: list[str]) -> tuple[list[str], list[str]]:
         elif current_section == "mc":
             mc_lines.append(line)
         else:
-            # Before any section header, try to detect by content
-            tf_match = TF_PATTERN.match(line)
-            if tf_match:
+            # Before any section header, detect by content
+            if TF_QUESTION_START.match(line):
                 current_section = "tf"
                 tf_lines.append(line)
+            elif MC_QUESTION_START.match(line):
+                current_section = "mc"
+                mc_lines.append(line)
 
     return tf_lines, mc_lines
 
 
 def _parse_tf_questions(lines: list[str], category_id: int) -> list[QuestionRecord]:
     """Parse true/false question lines."""
-    records = []
+    records: list[QuestionRecord] = []
     current_text_parts: list[str] = []
     current_answer: str | None = None
 
-    for line in lines:
-        tf_match = TF_PATTERN.match(line)
-        if tf_match:
-            # Save previous question if exists
-            if current_answer and current_text_parts:
-                text = " ".join(current_text_parts).strip()
-                reg_ref = _extract_regulation(text)
-                records.append(
-                    QuestionRecord(
-                        category_id=category_id,
-                        question_type="tf",
-                        question_text=text,
-                        correct_answer=current_answer,
-                        regulation_ref=reg_ref,
-                    )
+    def _save():
+        if current_answer and current_text_parts:
+            text = " ".join(current_text_parts).strip()
+            records.append(
+                QuestionRecord(
+                    category_id=category_id,
+                    question_type="tf",
+                    question_text=text,
+                    correct_answer=current_answer,
+                    regulation_ref=_extract_regulation(text),
                 )
+            )
 
+    for line in lines:
+        if _is_skip_line(line):
+            continue
+
+        tf_match = TF_QUESTION_START.match(line)
+        if tf_match:
+            _save()
             current_answer = tf_match.group(2)
             current_text_parts = [tf_match.group(3).strip()]
         elif current_answer is not None:
             stripped = line.strip()
-            if stripped and not QUESTION_BOUNDARY.match(line):
+            if stripped:
                 current_text_parts.append(stripped)
 
-    # Save last question
-    if current_answer and current_text_parts:
-        text = " ".join(current_text_parts).strip()
-        reg_ref = _extract_regulation(text)
-        records.append(
-            QuestionRecord(
-                category_id=category_id,
-                question_type="tf",
-                question_text=text,
-                correct_answer=current_answer,
-                regulation_ref=reg_ref,
-            )
-        )
-
+    _save()
     return records
 
 
 def _parse_mc_questions(lines: list[str], category_id: int) -> list[QuestionRecord]:
     """Parse multiple-choice question lines."""
-    records = []
+    records: list[QuestionRecord] = []
+    current_text_parts: list[str] = []
+    current_answer_num: str | None = None
 
-    # Group lines into questions
-    questions_raw: list[dict] = []
-    current: dict | None = None
+    def _save():
+        if current_answer_num and current_text_parts:
+            full_text = " ".join(current_text_parts).strip()
+            question_text, options = _extract_mc_options(full_text)
+            answer_letter = ANSWER_NUM_TO_LETTER.get(
+                current_answer_num, current_answer_num
+            )
+            records.append(
+                QuestionRecord(
+                    category_id=category_id,
+                    question_type="mc",
+                    question_text=question_text,
+                    correct_answer=answer_letter,
+                    options=options,
+                    regulation_ref=_extract_regulation(full_text),
+                )
+            )
 
     for line in lines:
-        q_match = QUESTION_BOUNDARY.match(line)
-        option_match = MC_OPTION.match(line.strip())
+        if _is_skip_line(line):
+            continue
 
-        if q_match and not option_match:
-            if current:
-                questions_raw.append(current)
-            # Check if answer is embedded like: 1. (B) question text
-            answer_embedded = re.match(r"^\s*\d+\s*[.、]\s*\(([A-D])\)\s*(.+)", line)
-            if answer_embedded:
-                current = {
-                    "answer": answer_embedded.group(1),
-                    "text_parts": [answer_embedded.group(2).strip()],
-                    "options": [],
-                }
-            else:
-                text = QUESTION_BOUNDARY.sub("", line).strip()
-                current = {
-                    "answer": None,
-                    "text_parts": [text] if text else [],
-                    "options": [],
-                }
-        elif option_match and current is not None:
-            current["options"].append(f"({option_match.group(1)}) {option_match.group(2).strip()}")
-        elif current is not None:
+        mc_match = MC_QUESTION_START.match(line)
+        if mc_match:
+            _save()
+            current_answer_num = mc_match.group(2)
+            current_text_parts = [mc_match.group(3).strip()]
+        elif current_answer_num is not None:
             stripped = line.strip()
             if stripped:
-                if current["options"]:
-                    # Continuation of last option
-                    current["options"][-1] += " " + stripped
-                else:
-                    current["text_parts"].append(stripped)
+                current_text_parts.append(stripped)
 
-    if current:
-        questions_raw.append(current)
-
-    # Convert to QuestionRecords
-    for q in questions_raw:
-        if not q["text_parts"]:
-            continue
-
-        text = " ".join(q["text_parts"]).strip()
-        options = q["options"] if q["options"] else None
-        answer = q.get("answer")
-
-        if not answer:
-            logger.warning("MC question without answer detected, skipping: %s...", text[:50])
-            continue
-
-        reg_ref = _extract_regulation(text)
-        records.append(
-            QuestionRecord(
-                category_id=category_id,
-                question_type="mc",
-                question_text=text,
-                correct_answer=answer,
-                options=options,
-                regulation_ref=reg_ref,
-            )
-        )
-
+    _save()
     return records
+
+
+def _extract_mc_options(full_text: str) -> tuple[str, list[str] | None]:
+    """Extract question stem and options from MC question text.
+
+    Options are inline as (1)...(2)...(3)...(4)...
+    Converts to (A)...(B)...(C)...(D)... for frontend compatibility.
+    """
+    match = re.search(
+        r"\(1\)(.+?)\(2\)(.+?)\(3\)(.+?)\(4\)(.+)", full_text, re.DOTALL
+    )
+    if not match:
+        return full_text, None
+
+    question_stem = full_text[: match.start()].strip()
+    options = [
+        f"(A) {match.group(1).strip()}",
+        f"(B) {match.group(2).strip()}",
+        f"(C) {match.group(3).strip()}",
+        f"(D) {match.group(4).strip()}",
+    ]
+
+    return question_stem, options
 
 
 def _extract_regulation(text: str) -> str | None:

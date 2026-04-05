@@ -1,15 +1,10 @@
 import logging
-import re
 from pathlib import Path
 
 from docx import Document
 
 from src.ingestion.base import QuestionRecord
 from src.ingestion.pdf_parser import (
-    MC_OPTION,
-    QUESTION_BOUNDARY,
-    TF_PATTERN,
-    _extract_regulation,
     _split_sections,
     _parse_tf_questions,
     _parse_mc_questions,

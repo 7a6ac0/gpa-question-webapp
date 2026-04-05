@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from src.models.database import (
@@ -22,6 +22,8 @@ from src.models.schemas import (
     QuestionResponse,
     SessionProgress,
     SessionResultsResponse,
+    WeaknessCategoryStats,
+    WeaknessResponse,
 )
 
 router = APIRouter()
@@ -163,6 +165,61 @@ def submit_answer(req: AnswerRequest, db: Session = Depends(get_db)):
             total=session.total_questions,
             correct=correct_count,
         ),
+    )
+
+
+@router.get("/weakness", response_model=WeaknessResponse)
+def get_weakness(anonymous_id: str, db: Session = Depends(get_db)):
+    """Get cross-session weakness analysis for a user."""
+    # Count completed sessions
+    sessions_count = db.execute(
+        select(func.count(PracticeSession.id)).where(
+            PracticeSession.anonymous_id == anonymous_id,
+            PracticeSession.finished_at.isnot(None),
+        )
+    ).scalar()
+
+    # Aggregate answers by category across all sessions
+    rows = db.execute(
+        select(
+            Category.id.label("category_id"),
+            Category.name.label("category_name"),
+            func.count(SessionAnswer.id).label("total"),
+            func.sum(
+                case((SessionAnswer.is_correct, 1), else_=0)
+            ).label("correct"),
+        )
+        .join(PracticeSession, SessionAnswer.session_id == PracticeSession.id)
+        .join(Question, SessionAnswer.question_id == Question.id)
+        .join(Category, Question.category_id == Category.id)
+        .where(PracticeSession.anonymous_id == anonymous_id)
+        .group_by(Category.id, Category.name)
+    ).all()
+
+    total_answered = sum(r.total for r in rows)
+    total_correct = sum(r.correct for r in rows)
+
+    categories = sorted(
+        [
+            WeaknessCategoryStats(
+                category_id=r.category_id,
+                category_name=r.category_name,
+                total=r.total,
+                correct=r.correct,
+                percentage=round(r.correct / r.total * 100, 1) if r.total > 0 else 0,
+            )
+            for r in rows
+        ],
+        key=lambda c: c.percentage,
+    )
+
+    return WeaknessResponse(
+        anonymous_id=anonymous_id,
+        sessions_count=sessions_count,
+        total_answered=total_answered,
+        total_correct=total_correct,
+        overall_percentage=round(total_correct / total_answered * 100, 1) if total_answered > 0 else 0,
+        categories=categories,
     )
 
 
