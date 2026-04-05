@@ -1,4 +1,4 @@
-# GPA Question Parser
+# GPA Question WebAPP
 
 政府採購法題庫練習平台。從公共工程委員會 (PCC) 公開題庫 PDF 解析題目，提供線上練習、即時回饋、AI 解題分析，以及跨練習弱項追蹤。
 
