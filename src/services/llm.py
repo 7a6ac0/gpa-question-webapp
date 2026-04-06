@@ -13,6 +13,12 @@ logger = logging.getLogger(__name__)
 
 CACHE_VERSION = 1
 
+
+def is_llm_available() -> bool:
+    """Return True if LLM_API_KEY is set to a non-empty string."""
+    return bool(os.environ.get("LLM_API_KEY", ""))
+
+
 _client: OpenAI | None = None
 
 

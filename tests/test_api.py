@@ -1,3 +1,4 @@
+import os
 import uuid
 from unittest.mock import MagicMock, patch
 
@@ -373,6 +374,7 @@ def _mock_llm_response(text="這是一個測試解釋。"):
     return mock_response
 
 
+@patch.dict(os.environ, {"LLM_API_KEY": "test-key"})
 class TestExplainEndpoint:
     def _seed_question_with_ref(self, q_type="tf", regulation_ref="依第22條"):
         """Seed a single question and return its ID."""
@@ -461,6 +463,17 @@ class TestExplainEndpoint:
             "selected_answer": "X",
         })
         assert res.status_code == 503
+
+    @patch.dict(os.environ, {"LLM_API_KEY": ""})
+    def test_explain_returns_503_when_llm_disabled(self, client):
+        """API returns 503 when LLM_API_KEY is empty."""
+        qid = self._seed_question_with_ref()
+        res = client.post("/api/explain", json={
+            "question_id": qid,
+            "selected_answer": "X",
+        })
+        assert res.status_code == 503
+        assert "未啟用" in res.json()["detail"]
 
     def test_explain_cached_entry(self, client):
         """Pre-seed an explanation and verify cache hit without LLM call."""

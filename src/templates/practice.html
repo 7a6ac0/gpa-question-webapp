@@ -22,6 +22,7 @@
 {% block scripts %}
 <script>
 const sessionId = '{{ session_id }}';
+const llmAvailable = {{ llm_available | tojson }};
 let questions = [];
 let currentIndex = 0;
 let answered = {};
@@ -111,7 +112,7 @@ function renderFeedback(feedback, questionId) {
     if (!feedback.correct) {
         if (hasExplanation) {
             html += `<div class="explanation-content" id="explain-${questionId}" aria-live="polite">${escapeHtml(prevAnswer.explanation)}</div>`;
-        } else {
+        } else if (llmAvailable) {
             html += `<button class="btn btn-outline btn-sm explain-btn" id="explain-btn-${questionId}" aria-label="AI 解釋為什麼答錯" onclick="fetchExplanation(${questionId}, '${prevAnswer ? prevAnswer.answer : ''}')">為什麼我錯了？</button>`;
             html += `<div class="explanation-content" id="explain-${questionId}" style="display:none" aria-live="polite"></div>`;
         }

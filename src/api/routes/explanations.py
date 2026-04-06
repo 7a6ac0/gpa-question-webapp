@@ -11,6 +11,7 @@ from src.services.llm import (
     extract_article_numbers,
     generate_explanation,
     get_regulation_texts,
+    is_llm_available,
 )
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,9 @@ router = APIRouter()
 @router.post("/explain", response_model=ExplainResponse)
 def explain(req: ExplainRequest, db: Session = Depends(get_db)):
     """Generate or retrieve cached AI explanation for a wrong answer."""
+    if not is_llm_available():
+        raise HTTPException(status_code=503, detail="AI 解釋功能目前未啟用")
+
     question = db.execute(
         select(Question).where(Question.id == req.question_id)
     ).scalar_one_or_none()
