@@ -5,7 +5,7 @@
 ## 常用指令
 
 ```bash
-pip install -e ".[dev]"            # 安裝依賴（含開發）
+uv sync                            # 安裝依賴（建立 .venv）
 docker-compose up                  # 啟動完整環境（DB + App）
 alembic upgrade head               # 執行資料庫遷移
 uvicorn src.api.main:app --reload  # 本地開發伺服器（:8000）
