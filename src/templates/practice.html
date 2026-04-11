@@ -28,6 +28,33 @@ let currentIndex = 0;
 let answered = {};
 let correctCount = 0;
 
+function shuffleOptions(q) {
+    if (q.question_type !== 'mc' || !q.options) return;
+
+    const shuffled = [...q.options];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    const letters = ['A', 'B', 'C', 'D'];
+    const optionMap = {};
+    const reverseMap = {};
+    shuffled.forEach((opt, i) => {
+        const originalLetter = opt.match(/\(([A-D])\)/)?.[1];
+        if (originalLetter) {
+            optionMap[letters[i]] = originalLetter;
+            reverseMap[originalLetter] = letters[i];
+        }
+    });
+
+    q.options = shuffled.map((opt, i) =>
+        opt.replace(/\([A-D]\)/, `(${letters[i]})`)
+    );
+    q._optionMap = optionMap;
+    q._reverseMap = reverseMap;
+}
+
 function init() {
     const stored = sessionStorage.getItem('practice_questions');
     if (!stored) {
@@ -35,6 +62,7 @@ function init() {
         return;
     }
     questions = JSON.parse(stored);
+    questions.forEach(shuffleOptions);
     renderQuestion();
 }
 
@@ -122,13 +150,16 @@ function renderFeedback(feedback, questionId) {
 }
 
 async function submitAnswer(questionId, answer) {
+    const q = questions[currentIndex];
+    const originalAnswer = q._optionMap ? q._optionMap[answer] : answer;
+
     const res = await fetch('/api/answer', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             session_id: sessionId,
             question_id: parseInt(questionId),
-            answer: answer,
+            answer: originalAnswer,
         }),
     });
 
@@ -139,6 +170,9 @@ async function submitAnswer(questionId, answer) {
     }
 
     const feedback = await res.json();
+    if (q._reverseMap && feedback.correct_answer) {
+        feedback.correct_answer = q._reverseMap[feedback.correct_answer];
+    }
     answered[questionId] = {answer, feedback};
 
     if (feedback.correct) correctCount++;
@@ -196,6 +230,9 @@ async function fetchExplanation(questionId, selectedAnswer) {
     const container = document.getElementById(`explain-${questionId}`);
     if (!btn || !container) return;
 
+    const q = questions.find(q => q.id == questionId);
+    const originalAnswer = q && q._optionMap ? q._optionMap[selectedAnswer] : selectedAnswer;
+
     btn.disabled = true;
     btn.setAttribute('aria-disabled', 'true');
     container.style.display = '';
@@ -208,7 +245,7 @@ async function fetchExplanation(questionId, selectedAnswer) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 question_id: parseInt(questionId),
-                selected_answer: selectedAnswer,
+                selected_answer: originalAnswer,
             }),
         });
 
