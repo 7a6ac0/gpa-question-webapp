@@ -53,7 +53,9 @@ def create_session(req: CreateSessionRequest, db: Session = Depends(get_db)):
     if req.question_type:
         stmt = stmt.where(Question.question_type == req.question_type)
 
-    stmt = stmt.order_by(func.random()).limit(req.count)
+    stmt = stmt.order_by(func.random())
+    if req.count:
+        stmt = stmt.limit(req.count)
     rows = db.execute(stmt).all()
 
     if not rows:
