@@ -2,8 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from src.api.routes import categories, explanations, health, questions, sessions
-from src.services.llm import is_llm_available
+from src.api.routes import categories, health, questions, sessions
 
 app = FastAPI(title="GPA Question Parser", version="0.1.0")
 
@@ -11,7 +10,6 @@ app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(categories.router, prefix="/api", tags=["categories"])
 app.include_router(questions.router, prefix="/api", tags=["questions"])
 app.include_router(sessions.router, prefix="/api", tags=["sessions"])
-app.include_router(explanations.router, prefix="/api", tags=["explanations"])
 
 app.mount("/static", StaticFiles(directory="src/static"), name="static")
 
@@ -26,10 +24,7 @@ def index(request: Request):
 @app.get("/practice/{session_id}")
 def practice_page(request: Request, session_id: str):
     return templates.TemplateResponse(
-        request, "practice.html", {
-            "session_id": session_id,
-            "llm_available": is_llm_available(),
-        }
+        request, "practice.html", {"session_id": session_id}
     )
 
 

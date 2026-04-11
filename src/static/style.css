@@ -381,26 +381,6 @@ body {
 }
 .empty-state .btn { margin-top: 16px; }
 
-/* AI Explanation */
-.explain-btn { margin-top: 12px; }
-.explanation-content {
-    margin-top: 12px;
-    padding: 16px;
-    background: white;
-    border-left: 3px solid #2563eb;
-    border-radius: 0 6px 6px 0;
-    font-size: 14px;
-    line-height: 1.7;
-    color: #333;
-    white-space: pre-wrap;
-}
-.explanation-content.loading {
-    color: #888;
-    font-size: 13px;
-    background: #f8f9fa;
-    border-left-color: #ccc;
-}
-
 /* Utility */
 .loading { color: #888; text-align: center; padding: 40px; }
 

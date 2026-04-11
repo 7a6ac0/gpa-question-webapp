@@ -11,7 +11,6 @@ from sqlalchemy import (
     JSON,
     String,
     Text,
-    UniqueConstraint,
     create_engine,
     func,
 )
@@ -131,35 +130,6 @@ class SessionCategory(Base):
 
     session = relationship("PracticeSession", back_populates="categories")
     category = relationship("Category")
-
-
-class Regulation(Base):
-    __tablename__ = "regulations"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    article_number = Column(String(10), unique=True, nullable=False)
-    article_text = Column(Text, nullable=False)
-    chapter = Column(String(50))
-    law_name = Column(String(50), default="政府採購法")
-    updated_at = Column(DateTime, server_default=func.now())
-
-
-class Explanation(Base):
-    __tablename__ = "explanations"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
-    selected_answer = Column(String(10), nullable=False)
-    explanation_text = Column(Text, nullable=False)
-    cache_version = Column(Integer, default=1)
-    created_at = Column(DateTime, server_default=func.now())
-
-    __table_args__ = (
-        UniqueConstraint(
-            "question_id", "selected_answer", "cache_version",
-            name="uq_explanation_cache",
-        ),
-    )
 
 
 def get_db():

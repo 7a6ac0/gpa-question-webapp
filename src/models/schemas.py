@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class CategoryResponse(BaseModel):
@@ -85,11 +85,3 @@ class SessionResultsResponse(BaseModel):
     category_breakdown: list[CategoryBreakdown]
 
 
-class ExplainRequest(BaseModel):
-    question_id: int
-    selected_answer: str = Field(max_length=10)
-
-
-class ExplainResponse(BaseModel):
-    explanation: str
-    cached: bool

@@ -22,7 +22,6 @@
 {% block scripts %}
 <script>
 const sessionId = '{{ session_id }}';
-const llmAvailable = {{ llm_available | tojson }};
 let questions = [];
 let currentIndex = 0;
 let answered = {};
@@ -132,21 +131,10 @@ function renderMCOptions(q, prevAnswer) {
 function renderFeedback(feedback, questionId) {
     const cls = feedback.correct ? 'answer-feedback correct' : 'answer-feedback incorrect';
     const label = feedback.correct ? '回答正確！' : `正確答案：${feedback.correct_answer}`;
-    const prevAnswer = answered[questionId];
-    const hasExplanation = prevAnswer && prevAnswer.explanation;
 
     let html = `<div class="${cls}"><div class="label">${label}</div>`;
     if (feedback.regulation_ref) {
-        const regStyle = hasExplanation ? ' style="display:none"' : '';
-        html += `<div class="regulation" id="reg-${questionId}"${regStyle}>依據：${feedback.regulation_ref}</div>`;
-    }
-    if (!feedback.correct) {
-        if (hasExplanation) {
-            html += `<div class="explanation-content" id="explain-${questionId}" aria-live="polite">${escapeHtml(prevAnswer.explanation)}</div>`;
-        } else if (llmAvailable) {
-            html += `<button class="btn btn-outline btn-sm explain-btn" id="explain-btn-${questionId}" aria-label="AI 解釋為什麼答錯" onclick="fetchExplanation(${questionId}, '${prevAnswer ? prevAnswer.answer : ''}')">為什麼我錯了？</button>`;
-            html += `<div class="explanation-content" id="explain-${questionId}" style="display:none" aria-live="polite"></div>`;
-        }
+        html += `<div class="regulation">依據：${feedback.regulation_ref}</div>`;
     }
     html += '</div>';
     return html;
@@ -219,74 +207,6 @@ function prevQuestion() {
     if (currentIndex > 0) {
         currentIndex--;
         renderQuestion();
-    }
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-async function fetchExplanation(questionId, selectedAnswer) {
-    const btn = document.getElementById(`explain-btn-${questionId}`);
-    const container = document.getElementById(`explain-${questionId}`);
-    if (!btn || !container) return;
-
-    const q = questions.find(q => q.id == questionId);
-    const originalAnswer = q && q._optionMap ? q._optionMap[selectedAnswer] : selectedAnswer;
-
-    btn.disabled = true;
-    btn.setAttribute('aria-disabled', 'true');
-    container.style.display = '';
-    container.textContent = 'AI 正在分析，通常需要 3-5 秒...';
-    container.classList.add('loading');
-
-    try {
-        const res = await fetch('/api/explain', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                question_id: parseInt(questionId),
-                selected_answer: originalAnswer,
-            }),
-        });
-
-        if (!res.ok) {
-            const err = await res.json();
-            container.textContent = err.detail || '暫時無法生成解釋，請稍後再試';
-            container.classList.remove('loading');
-            btn.disabled = false;
-            btn.removeAttribute('aria-disabled');
-            btn.textContent = '重試';
-            return;
-        }
-
-        const data = await res.json();
-        if (!data.explanation) {
-            container.textContent = '暫時無法生成解釋';
-            container.classList.remove('loading');
-            return;
-        }
-
-        container.textContent = data.explanation;
-        container.classList.remove('loading');
-        btn.style.display = 'none';
-
-        // Cache in answered
-        if (answered[questionId]) {
-            answered[questionId].explanation = data.explanation;
-        }
-
-        // Fold regulation_ref
-        const regDiv = document.getElementById(`reg-${questionId}`);
-        if (regDiv) regDiv.style.display = 'none';
-    } catch (e) {
-        container.textContent = '網路錯誤，請稍後再試';
-        container.classList.remove('loading');
-        btn.disabled = false;
-        btn.removeAttribute('aria-disabled');
-        btn.textContent = '重試';
     }
 }
 
