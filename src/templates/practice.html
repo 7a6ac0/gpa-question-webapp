@@ -29,6 +29,10 @@ let answered = {};
 let correctCount = 0;
 
 function shuffleOptions(q) {
+    if (q.question_type === 'tf') {
+        q._tfReversed = Math.random() < 0.5;
+        return;
+    }
     if (q.question_type !== 'mc' || !q.options) return;
 
     const shuffled = [...q.options];
@@ -95,10 +99,9 @@ function renderQuestion() {
 }
 
 function renderTFOptions(q, prevAnswer) {
-    const options = [
-        {value: 'O', label: 'O (正確)'},
-        {value: 'X', label: 'X (錯誤)'},
-    ];
+    const options = q._tfReversed
+        ? [{value: 'X', label: 'X (錯誤)'}, {value: 'O', label: 'O (正確)'}]
+        : [{value: 'O', label: 'O (正確)'}, {value: 'X', label: 'X (錯誤)'}];
 
     return options.map(opt => {
         let cls = 'option';
