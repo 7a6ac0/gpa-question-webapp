@@ -6,6 +6,8 @@ class CategoryResponse(BaseModel):
     name: str
     source_code: str
     question_count: int
+    tf_count: int
+    mc_count: int
 
     model_config = {"from_attributes": True}
 

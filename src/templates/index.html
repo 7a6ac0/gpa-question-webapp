@@ -81,7 +81,10 @@ async function loadCategories() {
                 <span class="check"></span>
                 <span class="name">${cat.name}</span>
             </div>
-            <span class="count">${cat.question_count} 題</span>
+            <div class="count-group">
+                <span class="count">是非 ${cat.tf_count}</span>
+                <span class="count">選擇 ${cat.mc_count}</span>
+            </div>
         `;
         card.addEventListener('click', () => toggleCategory(card, cat.id));
         grid.appendChild(card);

@@ -108,12 +108,26 @@ class TestCategoriesEndpoint:
         data = res.json()
         cat1 = next(c for c in data if c["id"] == 1)
         assert cat1["question_count"] == 5
+        assert cat1["tf_count"] == 5
+        assert cat1["mc_count"] == 0
 
     def test_empty_category_shows_zero(self, client):
         res = client.get("/api/categories")
         data = res.json()
         cat3 = next(c for c in data if c["id"] == 3)
         assert cat3["question_count"] == 0
+        assert cat3["tf_count"] == 0
+        assert cat3["mc_count"] == 0
+
+    def test_categories_mixed_type_counts(self, client):
+        _seed_questions(3, category_id=1, q_type="tf")
+        _seed_questions(7, category_id=1, q_type="mc")
+        res = client.get("/api/categories")
+        data = res.json()
+        cat1 = next(c for c in data if c["id"] == 1)
+        assert cat1["question_count"] == 10
+        assert cat1["tf_count"] == 3
+        assert cat1["mc_count"] == 7
 
 
 class TestQuestionsEndpoint:

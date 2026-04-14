@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from src.models.database import Category, Question, get_db
@@ -17,6 +17,8 @@ def list_categories(db: Session = Depends(get_db)):
             Category.name,
             Category.source_code,
             func.count(Question.id).label("question_count"),
+            func.count(case((Question.question_type == "tf", Question.id))).label("tf_count"),
+            func.count(case((Question.question_type == "mc", Question.id))).label("mc_count"),
         )
         .outerjoin(
             Question,
@@ -33,6 +35,8 @@ def list_categories(db: Session = Depends(get_db)):
             name=row.name,
             source_code=row.source_code,
             question_count=row.question_count,
+            tf_count=row.tf_count,
+            mc_count=row.mc_count,
         )
         for row in rows
     ]
