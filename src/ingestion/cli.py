@@ -31,7 +31,7 @@ def detect_category_id(filepath: Path) -> int | None:
     match = re.match(r"(\d{1,2})", name)
     if match:
         num = int(match.group(1))
-        if 1 <= num <= 13:
+        if num in {c["id"] for c in CATEGORY_SEED}:
             return num
     return None
 

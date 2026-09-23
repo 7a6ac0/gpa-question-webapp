@@ -154,6 +154,7 @@ CATEGORY_SEED = [
     {"id": 11, "name": "工程及技術服務採購作業", "source_code": "11"},
     {"id": 12, "name": "財物及勞務採購作業", "source_code": "12"},
     {"id": 13, "name": "道德規範及違法處置", "source_code": "13"},
+    {"id": 14, "name": "錯誤採購態樣", "source_code": "14"},
 ]
 
 

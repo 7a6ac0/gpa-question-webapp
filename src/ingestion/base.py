@@ -21,8 +21,23 @@ class QuestionRecord:
 
     @property
     def source_hash(self) -> str:
-        raw = f"{self.category_id}|{self.question_type}|{self.question_text}"
-        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+        return compute_source_hash(
+            self.category_id, self.question_type, self.question_text, self.options
+        )
+
+
+def compute_source_hash(
+    category_id: int,
+    question_type: str,
+    question_text: str,
+    options: list[str] | None = None,
+) -> str:
+    # MC stems are often generic ("下列敘述何者正確？"), so options must be part
+    # of the identity; otherwise distinct questions collapse into one row.
+    raw = f"{category_id}|{question_type}|{question_text}"
+    if options:
+        raw += "|" + "|".join(options)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def upsert_questions(db: Session, records: list[QuestionRecord]) -> dict:
@@ -33,6 +48,13 @@ def upsert_questions(db: Session, records: list[QuestionRecord]) -> dict:
 
     for record in records:
         h = record.source_hash
+        if h in incoming_hashes:
+            logger.warning(
+                "Duplicate question in source (category %d, %s): %s",
+                record.category_id,
+                record.question_type,
+                record.question_text[:50],
+            )
         incoming_hashes.add(h)
 
         existing = db.execute(

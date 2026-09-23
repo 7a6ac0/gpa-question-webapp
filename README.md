@@ -4,7 +4,7 @@
 
 ## 功能
 
-- **13 大類題庫** — 涵蓋政府採購法全生命週期，是非題與選擇題
+- **14 大類題庫** — 涵蓋政府採購法全生命週期，是非題與選擇題
 - **隨機組卷** — 自選類別、題型與題數 (20/50/100/全部)，每次練習不重複
 - **即時回饋** — 作答後立即顯示正確答案
 - **弱項追蹤** — 跨練習統計各類別正確率，自動辨識弱項類別 (<80%)，一鍵針對弱項練習
@@ -55,7 +55,7 @@ python -m src.ingestion.cli parse --input ./data --category 1
 # 匯入結果會顯示：新增、更新、未變動、軟刪除的題目數量
 ```
 
-13 個類別對應的 PDF 檔案，來源為[公共工程委員會採購專業人員題庫](https://web.pcc.gov.tw/psms/plrtqdm/questionPublic/indexReadQuestion)：
+14 個類別對應的 PDF 檔案，來源為[公共工程委員會採購專業人員題庫](https://web.pcc.gov.tw/psms/plrtqdm/questionPublic/indexReadQuestion)：
 
 | 類別 | 主題 |
 |------|------|
@@ -72,6 +72,7 @@ python -m src.ingestion.cli parse --input ./data --category 1
 | 11 | 工程及技術服務採購作業 |
 | 12 | 財物及勞務採購作業 |
 | 13 | 道德規範及違法處置 |
+| 14 | 錯誤採購態樣 |
 
 ## 架構
 
@@ -110,7 +111,7 @@ src/
 
 5 張表：`categories`、`questions`、`practice_sessions`、`session_answers`、`session_categories`。
 
-題目以 `source_hash` (SHA256 of category + type + text) 做冪等 upsert，刪除使用 `deleted_at` 軟刪除。
+題目以 `source_hash` (SHA256 of category + type + text，選擇題再加上 options) 做冪等 upsert，刪除使用 `deleted_at` 軟刪除。
 
 ## 測試
 

@@ -25,6 +25,14 @@ class TestQuestionRecord:
         assert r1.source_hash != r2.source_hash
         assert r1.source_hash != r3.source_hash
 
+    def test_source_hash_includes_mc_options(self):
+        # 選擇題常有通用題幹（如「下列敘述何者正確？」），需靠選項區分
+        r1 = QuestionRecord(category_id=1, question_type="mc", question_text="下列何者正確？",
+                            correct_answer="A", options=["(A) 甲", "(B) 乙", "(C) 丙", "(D) 丁"])
+        r2 = QuestionRecord(category_id=1, question_type="mc", question_text="下列何者正確？",
+                            correct_answer="B", options=["(A) 子", "(B) 丑", "(C) 寅", "(D) 卯"])
+        assert r1.source_hash != r2.source_hash
+
 
 class TestUpsertQuestions:
     def test_insert_new_questions(self, db):
@@ -88,6 +96,17 @@ class TestUpsertQuestions:
         stats = upsert_questions(db, records)
         assert stats["new"] == 1
         assert stats["unchanged"] == 1
+
+    def test_mc_same_stem_different_options_not_merged(self, db):
+        records = [
+            QuestionRecord(category_id=1, question_type="mc", question_text="下列敘述何者正確？",
+                           correct_answer="C", options=["(A) 甲", "(B) 乙", "(C) 丙", "(D) 丁"]),
+            QuestionRecord(category_id=1, question_type="mc", question_text="下列敘述何者正確？",
+                           correct_answer="A", options=["(A) 子", "(B) 丑", "(C) 寅", "(D) 卯"]),
+        ]
+        stats = upsert_questions(db, records)
+        assert stats["new"] == 2
+        assert db.query(Question).filter(Question.deleted_at.is_(None)).count() == 2
 
 
 class TestPDFParser:

@@ -99,7 +99,7 @@ class TestCategoriesEndpoint:
         res = client.get("/api/categories")
         assert res.status_code == 200
         data = res.json()
-        assert len(data) == 13
+        assert len(data) == len(CATEGORY_SEED)
         assert data[0]["name"] == "政府採購全生命週期概論"
 
     def test_categories_with_counts(self, client):
