@@ -86,13 +86,13 @@ function renderMCOptions(q, prevAnswer) {
     if (!q.options) return '<p>無選項資料</p>';
 
     return q.options.map(opt => {
-        const letter = opt.match(/\(([A-D])\)/)?.[1];
+        const num = opt.match(/^\(([1-4])\)/)?.[1];
         let cls = 'option';
-        if (prevAnswer && letter) {
-            if (letter === prevAnswer.feedback.correct_answer) cls += ' correct';
-            else if (letter === prevAnswer.answer && !prevAnswer.feedback.correct) cls += ' wrong';
+        if (prevAnswer && num) {
+            if (num === prevAnswer.feedback.correct_answer) cls += ' correct';
+            else if (num === prevAnswer.answer && !prevAnswer.feedback.correct) cls += ' wrong';
         }
-        const disabled = prevAnswer ? '' : `onclick="submitAnswer('${q.id}', '${letter}')"`;
+        const disabled = prevAnswer ? '' : `onclick="submitAnswer('${q.id}', '${num}')"`;
         return `<div class="${cls}" ${disabled}><span class="circle"></span>${opt}</div>`;
     }).join('');
 }

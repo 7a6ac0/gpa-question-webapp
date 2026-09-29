@@ -21,16 +21,16 @@ class TestQuestionRecord:
     def test_source_hash_includes_category_and_type(self):
         r1 = QuestionRecord(category_id=1, question_type="tf", question_text="同一問題", correct_answer="O")
         r2 = QuestionRecord(category_id=2, question_type="tf", question_text="同一問題", correct_answer="O")
-        r3 = QuestionRecord(category_id=1, question_type="mc", question_text="同一問題", correct_answer="A")
+        r3 = QuestionRecord(category_id=1, question_type="mc", question_text="同一問題", correct_answer="1")
         assert r1.source_hash != r2.source_hash
         assert r1.source_hash != r3.source_hash
 
     def test_source_hash_includes_mc_options(self):
         # 選擇題常有通用題幹（如「下列敘述何者正確？」），需靠選項區分
         r1 = QuestionRecord(category_id=1, question_type="mc", question_text="下列何者正確？",
-                            correct_answer="A", options=["(A) 甲", "(B) 乙", "(C) 丙", "(D) 丁"])
+                            correct_answer="1", options=["(1) 甲", "(2) 乙", "(3) 丙", "(4) 丁"])
         r2 = QuestionRecord(category_id=1, question_type="mc", question_text="下列何者正確？",
-                            correct_answer="B", options=["(A) 子", "(B) 丑", "(C) 寅", "(D) 卯"])
+                            correct_answer="2", options=["(1) 子", "(2) 丑", "(3) 寅", "(4) 卯"])
         assert r1.source_hash != r2.source_hash
 
 
@@ -100,9 +100,9 @@ class TestUpsertQuestions:
     def test_mc_same_stem_different_options_not_merged(self, db):
         records = [
             QuestionRecord(category_id=1, question_type="mc", question_text="下列敘述何者正確？",
-                           correct_answer="C", options=["(A) 甲", "(B) 乙", "(C) 丙", "(D) 丁"]),
+                           correct_answer="3", options=["(1) 甲", "(2) 乙", "(3) 丙", "(4) 丁"]),
             QuestionRecord(category_id=1, question_type="mc", question_text="下列敘述何者正確？",
-                           correct_answer="A", options=["(A) 子", "(B) 丑", "(C) 寅", "(D) 卯"]),
+                           correct_answer="1", options=["(1) 子", "(2) 丑", "(3) 寅", "(4) 卯"]),
         ]
         stats = upsert_questions(db, records)
         assert stats["new"] == 2
@@ -163,11 +163,11 @@ class TestPDFParser:
         ]
         records = _parse_mc_questions(lines, category_id=1)
         assert len(records) == 1
-        assert records[0].correct_answer == "B"
+        assert records[0].correct_answer == "2"
         assert records[0].question_type == "mc"
         assert len(records[0].options) == 4
-        assert records[0].options[0].startswith("(A)")
-        assert records[0].options[1].startswith("(B)")
+        assert records[0].options[0].startswith("(1)")
+        assert records[0].options[1].startswith("(2)")
 
     def test_parse_mc_multiline(self):
         from src.ingestion.pdf_parser import _parse_mc_questions
@@ -179,7 +179,7 @@ class TestPDFParser:
         ]
         records = _parse_mc_questions(lines, category_id=1)
         assert len(records) == 1
-        assert records[0].correct_answer == "D"
+        assert records[0].correct_answer == "4"
         assert records[0].options is not None
         assert len(records[0].options) == 4
 
@@ -190,3 +190,29 @@ class TestPDFParser:
         ref = _extract_regulation(text)
         assert ref is not None
         assert "第22條" in ref
+
+    def test_ignore_regulation_column(self):
+        # 部分 PDF（02-04）右側有「依據法源」欄，內容不應混入題目文字
+        from src.ingestion.pdf_parser import _extract_page_text, _find_ignored_column_x0
+
+        class FakePage:
+            def __init__(self, chars):
+                self.chars = chars
+
+            def extract_words(self):
+                return [{"text": "依據法源", "x0": 496.1}] if any(c["text"] == "依" for c in self.chars) else []
+
+            def filter(self, fn):
+                return FakePage([c for c in self.chars if fn(c)])
+
+            def extract_text(self):
+                return "".join(c["text"] for c in self.chars)
+
+        def chars(text, x0):
+            return [{"object_type": "char", "text": ch, "x0": x0 + 7 * i} for i, ch in enumerate(text)]
+
+        page = FakePage(chars("題目文字", 451.9) + chars("第 2 條", 496.1))
+        column_x0 = _find_ignored_column_x0([FakePage(chars("依據法源", 496.1)), page])
+        assert column_x0 == 496.1
+        assert _extract_page_text(page, column_x0) == "題目文字"
+        assert _extract_page_text(page, None) == "題目文字第 2 條"

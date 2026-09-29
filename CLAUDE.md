@@ -27,7 +27,7 @@ python -m src.ingestion.cli parse --input ./data --category <id>  # 匯入題目
 - 題目以 `source_hash`（SHA256 of category + type + text，選擇題再加上 options）做冪等 upsert
 - 軟刪除使用 `deleted_at` 欄位，不物理刪除
 - 題型代碼：`"tf"`（是非題）、`"mc"`（選擇題）
-- 答案格式：`"O"/"X"`（是非）、`"A"/"B"/"C"/"D"`（選擇）
+- 答案格式：`"O"/"X"`（是非）、`"1"/"2"/"3"/"4"`（選擇，選項文字為 `"(1) ..."`）
 - 所有 timestamp 使用 UTC `server_default=func.now()`
 
 ## 環境變數

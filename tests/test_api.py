@@ -74,8 +74,8 @@ def _seed_questions(count=10, category_id=1, q_type="tf"):
             category_id=category_id,
             question_type=q_type,
             question_text=text,
-            correct_answer="O" if q_type == "tf" else "B",
-            options=[f"(A) A-{i}", f"(B) B-{i}", f"(C) C-{i}", f"(D) D-{i}"] if q_type == "mc" else None,
+            correct_answer="O" if q_type == "tf" else "2",
+            options=[f"(1) 1-{i}", f"(2) 2-{i}", f"(3) 3-{i}", f"(4) 4-{i}"] if q_type == "mc" else None,
             regulation_ref=f"第{i+1}條",
             source_hash=h,
         )

@@ -15,8 +15,8 @@ MC_QUESTION_START = re.compile(r"^\s*(\d+)\s+([1-4])\s+(.+)")
 TF_QUESTION_START = re.compile(r"^\s*(\d+)\s+([OX])\s+(.+)")
 HEADER_LINE = re.compile(r"^\s*(編\s+答\s+試題|號\s+案|資料產生日期)")
 REGULATION_REF = re.compile(r"(第\s*\d+\s*條[^。，\n]*)")
-
-ANSWER_NUM_TO_LETTER = {"1": "A", "2": "B", "3": "C", "4": "D"}
+# Some PDFs (e.g. 02-04) carry an extra right-hand column; ignore its contents
+IGNORED_COLUMN_HEADER = "依據法源"
 
 
 def parse_pdf(filepath: Path, category_id: int) -> list[QuestionRecord]:
@@ -25,8 +25,9 @@ def parse_pdf(filepath: Path, category_id: int) -> list[QuestionRecord]:
 
     try:
         with pdfplumber.open(filepath) as pdf:
+            column_x0 = _find_ignored_column_x0(pdf.pages)
             full_text = "\n".join(
-                page.extract_text() or "" for page in pdf.pages
+                _extract_page_text(page, column_x0) for page in pdf.pages
             )
     except Exception:
         logger.exception("Failed to open PDF: %s", filepath)
@@ -40,6 +41,26 @@ def parse_pdf(filepath: Path, category_id: int) -> list[QuestionRecord]:
 
     logger.info("Parsed %d questions from %s", len(records), filepath.name)
     return records
+
+
+def _find_ignored_column_x0(pages) -> float | None:
+    """Return the left edge of the 依據法源 column, if the PDF has one."""
+    for page in pages:
+        for word in page.extract_words():
+            if word["text"] == IGNORED_COLUMN_HEADER:
+                return word["x0"]
+    return None
+
+
+def _extract_page_text(page, column_x0: float | None) -> str:
+    """Extract page text, dropping characters that fall in the 依據法源 column."""
+    if column_x0 is not None:
+        # Question text ends ~2pt left of the column, so a 1pt margin is safe
+        page = page.filter(
+            lambda obj: obj.get("object_type") != "char"
+            or obj["x0"] < column_x0 - 1
+        )
+    return page.extract_text() or ""
 
 
 def _is_skip_line(line: str) -> bool:
@@ -132,15 +153,12 @@ def _parse_mc_questions(lines: list[str], category_id: int) -> list[QuestionReco
         if current_answer_num and current_text_parts:
             full_text = " ".join(current_text_parts).strip()
             question_text, options = _extract_mc_options(full_text)
-            answer_letter = ANSWER_NUM_TO_LETTER.get(
-                current_answer_num, current_answer_num
-            )
             records.append(
                 QuestionRecord(
                     category_id=category_id,
                     question_type="mc",
                     question_text=question_text,
-                    correct_answer=answer_letter,
+                    correct_answer=current_answer_num,
                     options=options,
                     regulation_ref=_extract_regulation(full_text),
                 )
@@ -167,8 +185,7 @@ def _parse_mc_questions(lines: list[str], category_id: int) -> list[QuestionReco
 def _extract_mc_options(full_text: str) -> tuple[str, list[str] | None]:
     """Extract question stem and options from MC question text.
 
-    Options are inline as (1)...(2)...(3)...(4)...
-    Converts to (A)...(B)...(C)...(D)... for frontend compatibility.
+    Options are inline as (1)...(2)...(3)...(4)... and keep that numbering.
     """
     match = re.search(
         r"\(1\)(.+?)\(2\)(.+?)\(3\)(.+?)\(4\)(.+)", full_text, re.DOTALL
@@ -177,12 +194,7 @@ def _extract_mc_options(full_text: str) -> tuple[str, list[str] | None]:
         return full_text, None
 
     question_stem = full_text[: match.start()].strip()
-    options = [
-        f"(A) {match.group(1).strip()}",
-        f"(B) {match.group(2).strip()}",
-        f"(C) {match.group(3).strip()}",
-        f"(D) {match.group(4).strip()}",
-    ]
+    options = [f"({i}) {match.group(i).strip()}" for i in range(1, 5)]
 
     return question_stem, options
 

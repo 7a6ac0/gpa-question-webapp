@@ -15,7 +15,7 @@ class QuestionRecord:
     category_id: int
     question_type: str  # 'tf' or 'mc'
     question_text: str
-    correct_answer: str  # 'O'/'X' for tf, 'A'/'B'/'C'/'D' for mc
+    correct_answer: str  # 'O'/'X' for tf, '1'/'2'/'3'/'4' for mc
     options: list[str] | None = None
     regulation_ref: str | None = None
 

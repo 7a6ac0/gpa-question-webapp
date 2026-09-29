@@ -71,12 +71,12 @@ def sample_questions(db):
             question_type="mc",
             question_text=text,
             options=[
-                f"(A) 選項A-{i}",
-                f"(B) 選項B-{i}",
-                f"(C) 選項C-{i}",
-                f"(D) 選項D-{i}",
+                f"(1) 選項1-{i}",
+                f"(2) 選項2-{i}",
+                f"(3) 選項3-{i}",
+                f"(4) 選項4-{i}",
             ],
-            correct_answer="B",
+            correct_answer="2",
             regulation_ref=f"政府採購法第{10+i}條",
             source_hash=h,
         )

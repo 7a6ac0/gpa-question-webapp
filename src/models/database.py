@@ -72,8 +72,8 @@ class Question(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     question_type = Column(String(10), nullable=False)  # 'tf' or 'mc'
     question_text = Column(Text, nullable=False)
-    options = Column(JSON)  # ["(A) ...", "(B) ...", ...] for mc, null for tf
-    correct_answer = Column(String(10), nullable=False)  # 'O'/'X' for tf, 'A'/'B'/'C'/'D' for mc
+    options = Column(JSON)  # ["(1) ...", "(2) ...", ...] for mc, null for tf
+    correct_answer = Column(String(10), nullable=False)  # 'O'/'X' for tf, '1'/'2'/'3'/'4' for mc
     regulation_ref = Column(Text)
     source_hash = Column(String(64), unique=True, nullable=False)
     deleted_at = Column(DateTime)
@@ -110,7 +110,7 @@ class SessionAnswer(Base):
     id = Column(Integer, primary_key=True)
     session_id = Column(GUID(), ForeignKey("practice_sessions.id", ondelete="CASCADE"), nullable=False)
     question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
-    user_answer = Column(String(10), nullable=False)  # 'O'/'X' or 'A'/'B'/'C'/'D'
+    user_answer = Column(String(10), nullable=False)  # 'O'/'X' or '1'/'2'/'3'/'4'
     is_correct = Column(Boolean, nullable=False)
     answered_at = Column(DateTime, server_default=func.now())
 
