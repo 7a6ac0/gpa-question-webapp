@@ -101,12 +101,7 @@ function renderFeedback(feedback, questionId) {
     const cls = feedback.correct ? 'answer-feedback correct' : 'answer-feedback incorrect';
     const label = feedback.correct ? '回答正確！' : `正確答案：${feedback.correct_answer}`;
 
-    let html = `<div class="${cls}"><div class="label">${label}</div>`;
-    if (feedback.regulation_ref) {
-        html += `<div class="regulation">依據：${feedback.regulation_ref}</div>`;
-    }
-    html += '</div>';
-    return html;
+    return `<div class="${cls}"><div class="label">${label}</div></div>`;
 }
 
 async function submitAnswer(questionId, answer) {

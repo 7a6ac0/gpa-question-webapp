@@ -280,11 +280,6 @@ body {
 }
 .answer-feedback.correct .label { color: #16a34a; }
 .answer-feedback.incorrect .label { color: #dc2626; }
-.answer-feedback .regulation {
-    font-size: 13px;
-    color: #555;
-    line-height: 1.5;
-}
 
 .nav-buttons {
     display: flex;
